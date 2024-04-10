@@ -1,23 +1,22 @@
 Brazilian e-commerce company: OLIST
 Sales forecasting.
 
+Notebooks:
+* [Raw data exploration and preprocessing](notebooks/1-data_exploration.ipynb) 
+* [Exploring the time series properties and forecasting](notebooks/2-forecasting.ipynb)
+
 Project Organization
 ------------
-
     ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
-    ├── README.md          <- The top-level README for developers using this project.
     ├── data
-    │   └── raw            <- The original, immutable data dump.
+    │   └── raw            <- The original data.
     │
     ├── notebooks          <- Jupyter notebooks. 
-    │   ├── [1-data_exploration.ipynb](notebooks/1-data_exploration.ipynb) -- Raw data exploration and preprocessing.
+    │   ├── [1-data_exploration.ipynb](notebooks/1-data_exploration.ipynb) <- Raw data exploration and preprocessing.
     │   │   
-    │   ├── [2-forecasting.ipynb](notebooks/2-forecasting.ipynb) -- Exploring the time series properties and forecasting.
+    │   └── [2-forecasting.ipynb](notebooks/2-forecasting.ipynb) <- Exploring the time series properties and forecasting.
     │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
+    ├── requirements.txt   <- The requirements file for reproducing the analysis environment.
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
     ├── src                <- Source code for use in this project.
     │   ├── __init__.py    <- Makes src a Python module
@@ -27,8 +26,6 @@ Project Organization
     │   ├── features       <- Scripts to turn raw data into features for modeling
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-  
-
 
 --------
 
