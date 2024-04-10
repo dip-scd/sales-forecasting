@@ -124,8 +124,6 @@ sphinxcontrib-htmlhelp==2.0.5
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.7
 sphinxcontrib-serializinghtml==1.1.10
-# Editable install with no version control (src==0.1.0)
--e /Users/scd/Library/CloudStorage/OneDrive-Personal/projects/sales/sales-forecasting
 stack-data==0.6.3
 statsmodels==0.14.1
 terminado==0.18.1
