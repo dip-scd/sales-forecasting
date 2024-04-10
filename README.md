@@ -1,19 +1,22 @@
 Brazilian e-commerce company: OLIST
 Sales forecasting.
 
+Notebooks:
+* [Raw data exploration and preprocessing](notebooks/1-data_exploration.ipynb) 
+* [Exploring the time series properties and forecasting](notebooks/2-forecasting.ipynb)
+
 Project Organization
 ------------
-
     ├── LICENSE
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
-    ├── README.md          <- The top-level README for developers using this project.
+    ├── [README](your-project-name/blob/master/your-subfolder/README.md)          <- The top-level README for developers using this project.
     ├── data
     │   └── raw            <- The original, immutable data dump.
     │
     ├── notebooks          <- Jupyter notebooks. 
-    │   ├── [1-data_exploration.ipynb](notebooks/1-data_exploration.ipynb) -- Raw data exploration and preprocessing.
+    │   ├── [1-data_exploration.ipynb](notebooks/1-data_exploration.ipynb) <- Raw data exploration and preprocessing.
     │   │   
-    │   ├── [2-forecasting.ipynb](notebooks/2-forecasting.ipynb) -- Exploring the time series properties and forecasting.
+    │   ├── [2-forecasting.ipynb](notebooks/2-forecasting.ipynb) <- Exploring the time series properties and forecasting.
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`
@@ -27,9 +30,9 @@ Project Organization
     │   ├── features       <- Scripts to turn raw data into features for modeling
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-  
-
 
 --------
+
+[README](your-project-name/blob/master/your-subfolder/README.md)
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
