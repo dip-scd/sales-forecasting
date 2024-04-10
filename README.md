@@ -11,9 +11,9 @@ Project Organization
     │   └── raw            <- The original, immutable data dump.
     │
     ├── notebooks          <- Jupyter notebooks. 
-    │   ├── 1-data_exploration.ipynb -- Raw data exploration and preprocessing.
+    │   ├── [1-data_exploration.ipynb](notebooks/1-data_exploration.ipynb) -- Raw data exploration and preprocessing.
     │   │   
-    │   ├── 2-forecasting.ipynb -- Exploring the time series properties and forecasting.
+    │   ├── [2-forecasting.ipynb](notebooks/2-forecasting.ipynb) -- Exploring the time series properties and forecasting.
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`
