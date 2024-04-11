@@ -499,7 +499,7 @@ def show_comparison_original_vs_restored(sr_x_original: pd.Series, timeseries_tr
 
     sr_x_transformed = timeseries_transformer.transform_forward(sr_x_original)
     sr_x_restored = timeseries_transformer.transform_reverse(
-        sr_x_transformed, sr_x_original[:timeseries_transformer.num_rolling])
+        sr_x_original[:timeseries_transformer.num_rolling], sr_x_transformed)
 
     fig, axx = plt.subplots(figsize=(15, 6), nrows=2, gridspec_kw={'height_ratios': [3, 1]})
     ax=axx[0]
