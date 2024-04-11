@@ -19,14 +19,16 @@ Project Organization
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment.
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
     ├── src                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes src a Python module
     │   │
-    │   ├── data           <- Scripts to download or generate data
+    │   ├── data           <- Scripts to process the data
     │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
+    │   ├── features       <- Scripts to turn the processed data into features for modeling
     │   │
-    │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-
+    │   ├── visualization  <- Scripts to create visualizations
+    │   │
+    │   └── utils          <- Additional utils functions
+    │
+    ├── tests              <- Unit tests
 --------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

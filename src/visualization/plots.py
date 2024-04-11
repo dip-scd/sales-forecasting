@@ -1,17 +1,16 @@
 
-import matplotlib.pyplot as plt
-import pandas as pd
-from matplotlib.lines import Line2D
-from matplotlib.gridspec import GridSpec
-
 import pandas as pd
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-
+from matplotlib.gridspec import GridSpec
+from matplotlib.lines import Line2D
+import sklearn
 import scipy.stats as stats
-from typing import Tuple, Callable
 
+from typing import Callable, Tuple
+
+from src.features.make_model_dataset import get_x_y
 from src.visualization.html import show_stat_test_results
 
 class S:
@@ -524,4 +523,115 @@ def show_comparison_original_vs_restored(sr_x_original: pd.Series, timeseries_tr
     
     fig.tight_layout()
     
+    plt.show()
+
+
+def plot_forecast_errors(
+        baseline_naive_error: float, 
+        baseline_linreg_error: float,
+        best_model_error: float, 
+        ax: plt.Axes,
+        dataset_name: str
+        ) -> None:
+    """
+    Plots a bar chart comparing the errors of the best model, linear regression baseline, and naive baseline.
+
+    Args:
+        baseline_naive_val_error (float): Validation error of the naive baseline model.
+        baseline_linreg_val_error (float): Validation error of the linear regression baseline model.
+        best_model_val_error (float): Validation error of the best model.
+        ax (plt.Axes): Axes object to plot the bar chart on.
+        dataset_name (str): Name of the dataset to include in the plot title.
+
+    Returns:
+        None
+    """
+
+    dict_val_error = {
+        'Model': best_model_error,
+        'Linear Regression\nBaseline': baseline_linreg_error,
+        'Naive Baseline': baseline_naive_error,
+    }
+
+    df_val_error = pd.Series(dict_val_error).rename('Error').to_frame()
+
+    df_val_error['Error'].plot.bar(
+        ax=ax, 
+        color=[S.focus, S.neutral, S.alt],
+        width=0.5, alpha=1.
+    )
+    ax.bar_label(ax.containers[0], padding=3, fmt='%.3f')
+
+    ax.grid(axis='y')
+    ax.set_ylabel('Error')
+    ax.set_title(f'{dataset_name} error')
+
+
+def plot_model_predictions(
+        df: pd.DataFrame,
+        sr_yhat: pd.Series,
+        ax: plt.Axes,
+        dataset_name: str
+    ) -> None:
+    """
+    Plots the real values, naive baseline, linear regression baseline, and model forecast on the given axes.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the real values, naive baseline, and linear regression baseline.
+        sr_yhat (pd.Series): Series containing the model forecast.
+        ax (plt.Axes): Axes object to plot on.
+        dataset_name (str): Name of the dataset to include in the plot title.
+
+    Returns:
+        None
+    """
+    df[('y', 1)].plot(ax=ax, color=S.context, alpha=0.5)
+    df[('baseline', 'naive')].plot(ax=ax, color=S.alt, linestyle='--', alpha=0.5)
+    df[('baseline', 'linear_regression')].plot(ax=ax, color=S.neutral, linestyle='-', alpha=0.5)
+    sr_yhat.plot(ax=ax, color=S.focus, alpha=1.)
+
+    leg = ax.legend([
+            'Real values',
+            'Naive baseline',
+            'Linear regression baseline',
+            'Model forecast',
+        ])
+    leg.get_frame().set_linewidth(0.0)
+    ax.set_title(f'Model forecast on the {dataset_name} set')
+    
+
+def show_forecast_errors_and_predictions(df_val, model, dataset_name):
+    df_X_val, df_y_val = get_x_y(df_val)
+
+    df_baseline_last_val = df_val[('baseline', 'naive')]
+    baseline_naive_val_error = sklearn.metrics.mean_squared_error(df_baseline_last_val, df_y_val)
+
+    df_baseline_linreg_val = df_val[('baseline', 'linear_regression')]
+    baseline_linreg_val_error = sklearn.metrics.mean_squared_error(df_baseline_linreg_val, df_y_val)
+
+    yhat_val = model.predict(df_X_val)
+    sr_yhat_val = pd.Series(
+        yhat_val,
+        index=df_X_val.index
+    )
+    best_model_val_error = sklearn.metrics.mean_squared_error(yhat_val, df_y_val)
+
+    fig, axx = make_fig(15, 7, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
+
+    plot_model_predictions(
+        df_val,
+        sr_yhat_val, 
+        axx[1],
+        dataset_name = dataset_name
+        )
+
+    plot_forecast_errors(
+        baseline_naive_val_error, 
+        baseline_linreg_val_error,
+        best_model_val_error,
+        axx[0],
+        dataset_name = dataset_name
+        )
+
+    fig.tight_layout()
     plt.show()

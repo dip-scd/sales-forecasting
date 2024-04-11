@@ -2,10 +2,39 @@ import pandas as pd
 from typing import Tuple
 import pandas as pd
 import numpy as np
-
+from typing import Any, Optional
 from sklearn.linear_model import LinearRegression
 
 from src.features.timeseries_augumentation import get_week_phase, get_month_phase
+
+
+def create_data_for_model(df_data: pd.DataFrame, max_lag: int = 9, 
+                          target_shift: int = 1, 
+                          timeseries_transformer: Optional[Any] = None) -> pd.DataFrame:
+    """
+    Create a dataset for time series forecasting model.
+
+    Args:
+        df_data (pd.DataFrame): Input data frame containing the time series data.
+        max_lag (int, optional): Maximum number of lags to create. Defaults to 9.
+        target_shift (int, optional): Number of periods to shift the target variable. Defaults to 1.
+        timeseries_transformer (Optional[Any], optional): Transformer to apply to the time series data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Data frame with lag features and target variable.
+    """
+    sr_x_transformed = df_data['x']
+    if timeseries_transformer is not None:
+        sr_x_transformed = timeseries_transformer.transform_forward(df_data['x'])
+    df_data_transformed = sr_x_transformed.to_frame()
+
+    df_data_m = df_data_transformed.dropna().copy()
+    df_data_m.columns.rename(None, inplace=True)
+    df_data_m.rename(columns={df_data_m.columns[0]: 'x'}, inplace=True)
+
+    df_x_features = create_lag_features(df_data_m, max_lag)
+    df_data_ext = add_target(df_x_features, target_shift)
+    return df_data_ext
 
 def create_lag_features(df: pd.DataFrame, max_lag: int = 9) -> pd.DataFrame:
     """
@@ -191,9 +220,6 @@ def augument_with_periodic_phases(
     df[('x','month_phase')] = pd.Series(df.index).apply(get_month_phase).values
     return df
 
-
-
-
 def augument_the_data(
     df: pd.DataFrame, 
     validation_ratio: float = 0.1, 
@@ -312,7 +338,6 @@ def augument_with_baseline_predictions(
     return df
 
 
-
 def augument_with_periodic_phases(
     df: pd.DataFrame
 ) -> pd.DataFrame:
@@ -333,7 +358,8 @@ def augument_the_data(
     df: pd.DataFrame, 
     validation_ratio: float = 0.1, 
     test_ratio: float = 0.1, 
-    do_augument_with_periodic_phases: bool = False
+    do_augument_with_periodic_phases: bool = False,
+    is_differenced: bool = True
 ) -> pd.DataFrame:
     """Augment a DataFrame with baseline predictions and periodic phases.
     
@@ -353,6 +379,41 @@ def augument_the_data(
 
     df = augument_with_baseline_predictions(
         df, validation_ratio, 
-        test_ratio, is_differenced = True)
+        test_ratio, is_differenced = is_differenced)
 
     return df
+
+def create_augumented_data_for_model(df_data: pd.DataFrame, 
+                                    max_lag: int = 9, 
+                                    target_shift: int = 1,
+                                    validation_ratio: float = 0.1,
+                                    test_ratio: float = 0.1,
+                                    timeseries_transformer=None,
+                                    is_differenced: bool = False,
+                                    augument_with_periodic_phases: bool = False,
+                                    ) -> pd.DataFrame:
+    """
+    Create augmented data for a time series forecasting model.
+
+    Args:
+        df_data (pd.DataFrame): Input data frame containing the time series data.
+        max_lag (int, optional): Maximum lag to consider for creating lagged features. Defaults to 9.
+        target_shift (int, optional): Number of periods to shift the target variable. Defaults to 1.
+        timeseries_transformer (callable, optional): Transformer function to apply to the time series data. Defaults to None.
+        is_differenced (bool, optional): Whether the data has been differenced. Defaults to False.
+        augument_with_periodic_phases (bool, optional): Whether to augment the data with periodic phases. Defaults to False.
+
+    Returns:
+        pd.DataFrame: Augmented data frame with lagged features and target variable.
+    """
+    df_data_ret = create_data_for_model(
+        df_data, max_lag=max_lag, 
+        target_shift=target_shift,
+        timeseries_transformer=timeseries_transformer)
+    df_data_ret = augument_the_data(
+        df_data_ret, validation_ratio, 
+        test_ratio, 
+        is_differenced = is_differenced,
+        do_augument_with_periodic_phases=augument_with_periodic_phases)
+
+    return df_data_ret
