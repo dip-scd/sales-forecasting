@@ -8,7 +8,7 @@ from matplotlib.lines import Line2D
 import sklearn
 import scipy.stats as stats
 
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Any, Dict, List
 
 from src.features.make_model_dataset import get_x_y
 from src.visualization.html import show_stat_test_results
@@ -525,113 +525,208 @@ def show_comparison_original_vs_restored(sr_x_original: pd.Series, timeseries_tr
     
     plt.show()
 
-
-def plot_forecast_errors(
-        baseline_naive_error: float, 
-        baseline_linreg_error: float,
-        best_model_error: float, 
+def plot_series_errors(
+        lst_series_specs: List[Tuple[pd.Series, str, Dict[str, Any]]],
+        lst_errors: List[float],
         ax: plt.Axes,
+        metric_name: str,
         dataset_name: str
         ) -> None:
     """
-    Plots a bar chart comparing the errors of the best model, linear regression baseline, and naive baseline.
+    Plots the errors for a list of series specifications on a given axis.
 
     Args:
-        baseline_naive_val_error (float): Validation error of the naive baseline model.
-        baseline_linreg_val_error (float): Validation error of the linear regression baseline model.
-        best_model_val_error (float): Validation error of the best model.
-        ax (plt.Axes): Axes object to plot the bar chart on.
-        dataset_name (str): Name of the dataset to include in the plot title.
+        lst_series_specs (List[Tuple[pd.Series, str, Dict[str, Any]]]): A list of tuples containing the series data, label, and plot style dictionary.
+        lst_errors (List[float]): A list of error values corresponding to each series specification.
+        ax (plt.Axes): The axis object on which to plot the errors.
+        dataset_name (str): The name of the dataset being plotted.
 
     Returns:
         None
     """
+    
+    dict_val_error: Dict[str, float] = {}
 
-    dict_val_error = {
-        'Model': best_model_error,
-        'Linear Regression\nBaseline': baseline_linreg_error,
-        'Naive Baseline': baseline_naive_error,
-    }
+    for spec, error in zip(lst_series_specs, lst_errors):
+        dict_val_error[spec[1]] = error
 
     df_val_error = pd.Series(dict_val_error).rename('Error').to_frame()
 
     df_val_error['Error'].plot.bar(
         ax=ax, 
-        color=[S.focus, S.neutral, S.alt],
+        color=[
+            e[2]['color'] for e in lst_series_specs
+        ],
         width=0.5, alpha=1.
     )
     ax.bar_label(ax.containers[0], padding=3, fmt='%.3f')
 
     ax.grid(axis='y')
-    ax.set_ylabel('Error')
-    ax.set_title(f'{dataset_name} error')
+    ax.set_ylabel(metric_name)
+    ax.set_title(f'{metric_name}\n on the {dataset_name} set')
 
 
-def plot_model_predictions(
-        df: pd.DataFrame,
-        sr_yhat: pd.Series,
+def plot_model_predictions_transform_reversed(
+        lst_series_specs: List[Tuple[pd.Series, str, Dict]],
         ax: plt.Axes,
         dataset_name: str
     ) -> None:
     """
-    Plots the real values, naive baseline, linear regression baseline, and model forecast on the given axes.
+    Plot the model predictions on the given axis.
 
     Args:
-        df (pd.DataFrame): DataFrame containing the real values, naive baseline, and linear regression baseline.
-        sr_yhat (pd.Series): Series containing the model forecast.
-        ax (plt.Axes): Axes object to plot on.
-        dataset_name (str): Name of the dataset to include in the plot title.
+        lst_series_specs (List[Tuple[pd.Series, str, Dict]]): A list of tuples containing the series data, label, and plot options.
+        ax (plt.Axes): The axis object on which to plot the data.
+        dataset_name (str): The name of the dataset being plotted.
 
     Returns:
         None
     """
-    df[('y', 1)].plot(ax=ax, color=S.context, alpha=0.5)
-    df[('baseline', 'naive')].plot(ax=ax, color=S.alt, linestyle='--', alpha=0.5)
-    df[('baseline', 'linear_regression')].plot(ax=ax, color=S.neutral, linestyle='-', alpha=0.5)
-    sr_yhat.plot(ax=ax, color=S.focus, alpha=1.)
+
+    for series_spec in lst_series_specs:
+        series_spec[0].plot(ax=ax, **series_spec[2])
 
     leg = ax.legend([
-            'Real values',
-            'Naive baseline',
-            'Linear regression baseline',
-            'Model forecast',
+            e[1] for e in lst_series_specs
         ])
     leg.get_frame().set_linewidth(0.0)
     ax.set_title(f'Model forecast on the {dataset_name} set')
-    
 
-def show_forecast_errors_and_predictions(df_val, model, dataset_name):
+
+def show_forecast_errors_and_predictions(
+    df_val: pd.DataFrame,
+    model: Any,
+    error_metric: Tuple[Callable,str],
+    dataset_name: str
+) -> None:
+    
     df_X_val, df_y_val = get_x_y(df_val)
 
-    df_baseline_last_val = df_val[('baseline', 'naive')]
-    baseline_naive_val_error = sklearn.metrics.mean_squared_error(df_baseline_last_val, df_y_val)
+    # Real values i.e ideal predictions
+    sr_y_val = df_val[('y', 1)]
 
-    df_baseline_linreg_val = df_val[('baseline', 'linear_regression')]
-    baseline_linreg_val_error = sklearn.metrics.mean_squared_error(df_baseline_linreg_val, df_y_val)
+    sr_val_baseline_naive = df_val[('baseline', 'naive')]
+    sr_val_baseline_linreg = df_val[('baseline', 'linear_regression')]
+
 
     yhat_val = model.predict(df_X_val)
     sr_yhat_val = pd.Series(
         yhat_val,
         index=df_X_val.index
     )
-    best_model_val_error = sklearn.metrics.mean_squared_error(yhat_val, df_y_val)
 
-    fig, axx = make_fig(15, 7, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
+    lst_series_specs = [
+        (sr_y_val, 'Real values i.e. ideal forecast', dict(color=S.context, alpha=0.5)),
+        (sr_val_baseline_naive, 'Naive baseline', dict(color=S.alt, linestyle=':', alpha=0.5)),
+        (sr_val_baseline_linreg, 'Linear regression\n(done on transformed values)\nbaseline', dict(color=S.neutral, linestyle='-', alpha=0.5)),
+        (sr_yhat_val, 'Model forecast', dict(color=S.focus, alpha=1.)),
+    ]
 
-    plot_model_predictions(
-        df_val,
-        sr_yhat_val, 
-        axx[1],
+    lst_errors = [
+        error_metric[0](
+            df_y_val, 
+            e[0].loc[
+                sr_yhat_val.index
+            ]
+            ) for e in lst_series_specs
+    ]
+
+    fig, axx = make_fig(15, 9, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
+
+    plot_model_predictions_transform_reversed(
+        lst_series_specs,
+        ax = axx[1],
         dataset_name = dataset_name
-        )
+    )
 
-    plot_forecast_errors(
-        baseline_naive_val_error, 
-        baseline_linreg_val_error,
-        best_model_val_error,
-        axx[0],
+    plot_series_errors(
+        lst_series_specs[1:],
+        lst_errors[1:],
+        ax = axx[0],
+        metric_name = error_metric[1],
         dataset_name = dataset_name
-        )
+    )
+
+    fig.tight_layout()
+    plt.show()
+
+
+def show_forecast_errors_and_predictions_transform_reversed(
+    df_val: pd.DataFrame,
+    df_val_original: pd.DataFrame,
+    model: Any,
+    error_metric: Tuple[Callable,str],
+    timeseries_transformer,
+    dataset_name: str
+) -> None:
+    
+    df_X_val, _ = get_x_y(df_val)
+
+    sr_x_val_original = df_val_original[('x','-0')]
+
+    # Real values i.e ideal predictions
+    sr_y_val_original = df_val_original[('y', 1)]
+
+    # baseline linear regression that uses original values as an input
+    sr_val_original_baseline_linreg = df_val_original[('baseline', 'linear_regression')]
+
+    # baseline naive that uses transformed values as an input
+    # excepted to be equal to sr_val_original_baseline_naive
+    sr_val_transformed_baseline_naive_reversed = timeseries_transformer.transform_forecast_reverse(
+        sr_x_val_original, df_val[('baseline', 'naive')])
+
+    # baseline linear regression that uses transformed values as an input
+    sr_val_transformed_baseline_linreg_reversed = timeseries_transformer.transform_forecast_reverse(
+        sr_x_val_original, df_val[('baseline', 'linear_regression')])
+
+
+    yhat_val = model.predict(df_X_val)
+    sr_yhat_val = pd.Series(
+        yhat_val,
+        index=df_X_val.index
+    )
+
+    sr_val_forecast_reversed = timeseries_transformer.transform_forecast_reverse(
+        sr_x_val_original, sr_yhat_val)
+
+    df_val_original_cut = df_val_original.loc[
+        sr_val_forecast_reversed.index
+    ]
+
+    _, df_y_val_original_cut = get_x_y(df_val_original_cut)
+
+    lst_series_specs = [
+        (sr_y_val_original, 'Real values i.e. ideal forecast', dict(color=S.context, alpha=0.5)),
+        (sr_val_transformed_baseline_naive_reversed, 'Naive baseline', dict(color=S.alt, linestyle=':', alpha=0.5)),
+        (sr_val_original_baseline_linreg, 'Linear regression\n(done directly on original values)\nbaseline', dict(color=S.neutral, linestyle='--', alpha=0.5)),
+        (sr_val_transformed_baseline_linreg_reversed, 'Linear regression\n(done on transformed values)\nbaseline', dict(color=S.neutral, linestyle='-', alpha=0.5)),
+        (sr_val_forecast_reversed, 'Model forecast', dict(color=S.focus, alpha=1.)),
+    ]
+
+    lst_errors = [
+        error_metric[0](
+            df_y_val_original_cut, 
+            e[0].loc[
+                sr_val_forecast_reversed.index
+            ]
+            ) for e in lst_series_specs
+    ]
+
+    fig, axx = make_fig(15, 9, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
+
+    plot_model_predictions_transform_reversed(
+        lst_series_specs,
+        ax = axx[1],
+        dataset_name = dataset_name
+    )
+
+    plot_series_errors(
+        lst_series_specs[1:],
+        lst_errors[1:],
+        ax = axx[0],
+        metric_name = error_metric[1],
+        dataset_name = dataset_name
+    )
 
     fig.tight_layout()
     plt.show()

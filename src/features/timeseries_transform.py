@@ -125,6 +125,36 @@ def transform_reverse(
 
     return sr_x_restored
 
+# difference between this function and transform_reverse is that 
+# transform_reverse iteratively builds every next reversed transformed value based on
+# the result of reverse transformation from a previous step, while this function
+# requires the knowledge of the original t-1 value at every step of the reverse transformation
+# therefore this function does not accumulate the prediction error
+# also this function returns a _forecasted_ i.e. future value while transform_reverse
+# returns an original value for the current timestep
+def transform_forecast_reverse(sr_x_original: pd.Series, sr_yhat_val: pd.Series, num_rolling: int) -> pd.Series:
+    """
+    Transforms the forecasted values back to the original scale by reversing the normalization process.
+    Given the original time series and the forecasted values in the transformed scale,
+    this function restores the forecasted values in the original scale.
+
+    Args:
+        sr_x_original (pd.Series): The original time series data.
+        sr_yhat_val (pd.Series): The forecasted values in the normalized scale.
+        num_rolling (int): The window size for the rolling standard deviation calculation.
+
+    Returns:
+        pd.Series: The forecasted values in the original scale.
+    """
+    sr_x_original_std = sr_x_original.rolling(num_rolling).std()
+    sr_yhat_absolute_restored = \
+        (sr_x_original + (sr_x_original_std * sr_yhat_val))[num_rolling:].dropna()
+
+    sr_yhat_absolute_restored = sr_yhat_absolute_restored
+    # sr_yhat_absolute_restored = pd.concat([sr_x_original, sr_yhat_absolute_restored], axis=0)
+
+    return sr_yhat_absolute_restored
+
 class TimeseriesTransformerDiffDividedByStd:
 
     def __init__(self, num_rolling=5):
@@ -135,3 +165,6 @@ class TimeseriesTransformerDiffDividedByStd:
     
     def transform_reverse(self, sr_x_original_start, sr_x_transformed, *args, **kwargs):
         return transform_reverse(sr_x_original_start, sr_x_transformed, self.num_rolling, *args, **kwargs)
+    
+    def transform_forecast_reverse(self, sr_x_original, sr_yhat_val, *args, **kwargs):
+        return transform_forecast_reverse(sr_x_original, sr_yhat_val, self.num_rolling, *args, **kwargs)
