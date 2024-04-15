@@ -35,10 +35,7 @@ class TestTimeseriesTransformerDiffDividedByStd(unittest.TestCase):
         # comparing the original and restored data. 
         # allowing small differences due to floating point arithmetic during the transformation.
 
-        print((self.sr_test_data - sr_test_restored))
-
         num_comparison_result = ((self.sr_test_data - sr_test_restored).apply(lambda x: np.round(x, 8)) == 0).all()
-        # print(num_comparison_result)
         self.assertEqual(num_comparison_result, True, 'Original and restored data are not equal.')
 
 

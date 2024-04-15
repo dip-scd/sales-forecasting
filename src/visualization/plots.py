@@ -1,13 +1,15 @@
 
+import math
 import pandas as pd
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
-import sklearn
+import scipy
 import scipy.stats as stats
-
+from itertools import product
+import seaborn as sns
 from typing import Callable, Tuple, Any, Dict, List
 
 from src.features.make_model_dataset import get_x_y
@@ -76,6 +78,33 @@ def make_fig(width: int = 10, height: int = 10, nrows: int = 1,
     
     return fig, ax
 
+def plot_points_density(sr: pd.Series, 
+                        ax: plt.Axes = None,
+                        title: str = None) -> None:
+    """
+    Plot the availability of data over time.
+
+    Args:
+        sr (pd.Series): A pandas Series containing the data availability information.
+        ax (plt.Axes, optional): An existing Axes object to plot on. If not provided, a new figure and axes will be created.
+        title (str, optional): The title of the plot.
+    Returns:
+        None
+    """
+    standalone = False
+    if ax is None:
+        standalone = True
+        _, ax = make_fig(15, 1.3)
+    sr.plot(marker='|', linewidth=0., color='#00000010', ax=ax)
+    ax.set_yticks([])
+    ax.set_xlabel(None)
+    ax.grid(axis='x')
+
+    if title is not None:
+        ax.set_title(title)
+
+    if standalone:
+        plt.show()
 
 def plot_sales(df_product_sales: pd.DataFrame, 
                show_legend: bool = False, 
@@ -402,8 +431,13 @@ def plot_rolling_stat(sr_x: pd.Series, ax: plt.Axes, func_stat: Callable, ylabel
     ax.margins(0.)
     ax.grid()
 
-def plot_normal_probplot(sr_x: pd.Series, ax: plt.Axes) -> None:
-    """Generate a normal probability plot for a pandas Series.
+def plot_dist_probplot(
+        sr_x: pd.Series,
+        ax: plt.Axes,
+        dist: Any = "norm",
+        dist_name: str = "Normal",
+        *args, **kwargs) -> None:
+    """Generate a distribution probability plot for a pandas Series.
 
     Args:
         sr_x: Input pandas Series
@@ -412,9 +446,9 @@ def plot_normal_probplot(sr_x: pd.Series, ax: plt.Axes) -> None:
     Returns:
         None
     """
-    stats.probplot(sr_x, dist="norm", plot=ax)
+    stats.probplot(sr_x, dist=dist, plot=ax, *args, **kwargs)
 
-    ax.set_title("Normal Probability Plot")
+    ax.set_title(f"{dist_name} Probability Plot")
     line0 = ax.get_lines()[0]
     line0.set_marker('.') 
     line0.set_markerfacecolor(S.neutral)
@@ -437,17 +471,17 @@ def show_timeseries_plots(sr_x: pd.Series) -> None:
 
     fig = plt.figure(layout="constrained", figsize=(15,10))
 
-    gs = GridSpec(4,2, figure=fig, width_ratios=[1, 0.25], 
-                        height_ratios=[1, 1, 0.5, 0.5])
+    gs = GridSpec(3,5, figure=fig,)
 
-    ax_0_0 = fig.add_subplot(gs[0, 0])
-    ax_0_1 = fig.add_subplot(gs[0, 1])
-    ax_1_0 = fig.add_subplot(gs[1, 0])
-    ax_1_1 = fig.add_subplot(gs[1, 1])
+    ax_0_0 = fig.add_subplot(gs[0, 0:4])
+    ax_0_1 = fig.add_subplot(gs[0, 4])
+    ax_1_0 = fig.add_subplot(gs[1, 0:4])
+    ax_1_1 = fig.add_subplot(gs[1, 4])
     ax_2_0 = fig.add_subplot(gs[2, 0])
-    ax_3_0 = fig.add_subplot(gs[3, 0])
-
-    ax_23_1 = fig.add_subplot(gs[2:4, 1])
+    ax_2_1 = fig.add_subplot(gs[2, 1])
+    ax_2_2 = fig.add_subplot(gs[2, 2])
+    # ax_2_3 = fig.add_subplot(gs[2, 3])
+    # ax_2_4 = fig.add_subplot(gs[2, 4])
 
     def format_axes(fig):
         for i, ax in enumerate(fig.axes):
@@ -471,14 +505,28 @@ def show_timeseries_plots(sr_x: pd.Series) -> None:
     plot_autocorrelation(sr_x, ax)
 
 
+    # ax = ax_2_0
+    # plot_rolling_stat(sr_x, ax, np.mean, 'rolling\nmean')
+
+    # ax = ax_3_0
+    # plot_rolling_stat(sr_x, ax, np.std, 'rolling\nstd')
+
     ax = ax_2_0
-    plot_rolling_stat(sr_x, ax, np.mean, 'rolling\nmean')
+    plot_dist_probplot(sr_x, ax, 'norm', 'Normal')
 
-    ax = ax_3_0
-    plot_rolling_stat(sr_x, ax, np.std, 'rolling\nstd')
+    ax = ax_2_1
+    plot_dist_probplot(sr_x, ax, scipy.stats.powerlaw(1), 'powerlaw(1)')
 
-    ax = ax_23_1
-    plot_normal_probplot(sr_x, ax)
+    ax = ax_2_2
+    plot_dist_probplot(sr_x, ax, scipy.stats.gamma(1), 'gamma(1)')
+
+    # ax = ax_2_3
+    # plot_dist_probplot(sr_x, ax, scipy.stats.expon, 'expon')
+
+    # ax = ax_2_4
+    # plot_dist_probplot(sr_x, ax, scipy.stats.exponnorm(1), 'exponnorm')
+
+    
 
     plt.show()
 
@@ -594,19 +642,30 @@ def plot_model_predictions_transform_reversed(
 
 
 def show_forecast_errors_and_predictions(
-    df_val: pd.DataFrame,
+    df: pd.DataFrame,
     model: Any,
-    error_metric: Tuple[Callable,str],
+    error_metric: Tuple[Callable, str],
     dataset_name: str
 ) -> None:
-    
-    df_X_val, df_y_val = get_x_y(df_val)
+    """
+    Plots the forecast errors and predictions for a given model and dataset.
+
+    Args:
+        df (pd.DataFrame): DataFrame with features and labels..
+        model (Any): The model object used for forecasting.
+        error_metric (Tuple[Callable, str]): A tuple containing the error metric function and its name.
+        dataset_name (str): The name of the dataset.
+
+    Returns:
+        None
+    """
+    df_X_val, df_y_val = get_x_y(df)
 
     # Real values i.e ideal predictions
-    sr_y_val = df_val[('y', 1)]
+    sr_y_val = df[('y', 1)]
 
-    sr_val_baseline_naive = df_val[('baseline', 'naive')]
-    sr_val_baseline_linreg = df_val[('baseline', 'linear_regression')]
+    sr_val_baseline_naive = df[('baseline', 'naive')]
+    sr_val_baseline_linreg = df[('baseline', 'linear_regression')]
 
 
     yhat_val = model.predict(df_X_val)
@@ -650,6 +709,100 @@ def show_forecast_errors_and_predictions(
     fig.tight_layout()
     plt.show()
 
+
+
+def show_forecast_errors_and_predictions_transform_reversed(
+    df: pd.DataFrame,
+    df_original: pd.DataFrame,
+    model: Any,
+    error_metric: Tuple[Callable,str],
+    timeseries_transformer,
+    dataset_name: str
+) -> None:
+    """
+    Displays forecast errors and predictions with the transformed values reversed back to the original scale.
+
+    Args:
+        df (pd.DataFrame): DataFrame with the transformed features and target values.
+        df_original (pd.DataFrame): DataFrame with features and target values in the original scale.
+        model (Any): The trained model to make predictions.
+        error_metric (Tuple[Callable, str]): A tuple containing the error metric function and its name.
+        timeseries_transformer: The time series transformer used to transform the data.
+        dataset_name (str): The name of the dataset.
+
+    Returns:
+        None
+    """
+    df_X_val, _ = get_x_y(df)
+
+    sr_x_val_original = df_original[('x','-0')]
+
+    # Real values i.e ideal predictions
+    sr_y_val_original = df_original[('y', 1)]
+
+    # baseline linear regression that uses original values as an input
+    sr_val_original_baseline_linreg = df_original[('baseline', 'linear_regression')]
+
+    # baseline naive that uses transformed values as an input
+    # excepted to be equal to sr_val_original_baseline_naive
+    sr_val_transformed_baseline_naive_reversed = timeseries_transformer.transform_forecast_reverse(
+        sr_x_val_original, df[('baseline', 'naive')])
+
+    # baseline linear regression that uses transformed values as an input
+    sr_val_transformed_baseline_linreg_reversed = timeseries_transformer.transform_forecast_reverse(
+        sr_x_val_original, df[('baseline', 'linear_regression')])
+
+
+    yhat_val = model.predict(df_X_val)
+    sr_yhat_val = pd.Series(
+        yhat_val,
+        index=df_X_val.index
+    )
+
+    sr_val_forecast_reversed = timeseries_transformer.transform_forecast_reverse(
+        sr_x_val_original, sr_yhat_val)
+
+    df_val_original_cut = df_original.loc[
+        sr_val_forecast_reversed.index
+    ]
+
+    _, df_y_val_original_cut = get_x_y(df_val_original_cut)
+
+    lst_series_specs = [
+        (sr_y_val_original, 'Real values i.e. ideal forecast', dict(color=S.context, alpha=0.5)),
+        (sr_val_transformed_baseline_naive_reversed, 'Naive baseline', dict(color=S.alt, linestyle=':', alpha=0.5)),
+        (sr_val_original_baseline_linreg, 'Linear regression\n(done directly on original values)\nbaseline', dict(color=S.neutral, linestyle='--', alpha=0.5)),
+        (sr_val_transformed_baseline_linreg_reversed, 'Linear regression\n(done on transformed values)\nbaseline', dict(color=S.neutral, linestyle='-', alpha=0.5)),
+        (sr_val_forecast_reversed, 'Model forecast', dict(color=S.focus, alpha=1.)),
+    ]
+
+    lst_errors = [
+        error_metric[0](
+            df_y_val_original_cut, 
+            e[0].loc[
+                sr_val_forecast_reversed.index
+            ]
+            ) for e in lst_series_specs
+    ]
+
+    fig, axx = make_fig(15, 9, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
+
+    plot_model_predictions_transform_reversed(
+        lst_series_specs,
+        ax = axx[1],
+        dataset_name = dataset_name
+    )
+
+    plot_series_errors(
+        lst_series_specs[1:],
+        lst_errors[1:],
+        ax = axx[0],
+        metric_name = error_metric[1],
+        dataset_name = dataset_name
+    )
+
+    fig.tight_layout()
+    plt.show()
 
 def show_forecast_errors_and_predictions_transform_reversed(
     df_val: pd.DataFrame,
@@ -730,3 +883,328 @@ def show_forecast_errors_and_predictions_transform_reversed(
 
     fig.tight_layout()
     plt.show()
+
+
+def plot_ax_error_grid(ax, 
+                       levels: List[float], 
+                       x: List[float], y: List[float], z: List[float], 
+                       x_spec: List[float], y_spec: List[float], 
+                       str_x_dimension: str, str_y_dimension: str,
+                       title: str):
+    """
+    Plots a grid of error values on the given axis.
+
+    Args:
+        ax: The axis object to plot on.
+        levels (List[float]): The contour levels to use for the plot.
+        x (List[float]): The x-coordinates of the grid points.
+        y (List[float]): The y-coordinates of the grid points.
+        z (List[float]): The error values at each grid point.
+        x_spec (List[float]): The x-tick locations.
+        y_spec (List[float]): The y-tick locations.
+        str_x_dimension (str): The name of the x-dimension.
+        str_y_dimension (str): The name of the y-dimension.
+        title (str): The title of the plot.
+
+    Returns:
+        The contour plot object.
+    """
+    cmap = sns.color_palette("magma", as_cmap=True)
+
+    cs = ax.tricontourf(x, y, z, levels=levels, cmap=cmap)
+    ax.set_xlabel(str_x_dimension)
+    ax.set_ylabel(str_y_dimension)
+
+    min_x = None
+    min_y = None
+    color_base = S.neutral
+    for i, z_item in enumerate(z):
+        size = 8
+    
+        color = f'{color_base}ff'
+        # color = f'{S.context}90'
+        bbox_props = None
+        if z_item <= z.min():
+            
+            color = '#00DDFF'
+            back_color = '#000000'
+            bbox_props = dict(boxstyle="Square", fc=back_color, ec=back_color, alpha=0.9)
+            size = 12
+
+            min_x = x[i]
+            min_y = y[i]
+
+        ax.text(x[i], y[i], np.round(z_item,3), 
+                bbox=bbox_props,
+                ha='center', va='center', fontdict={
+                    'size': size, 
+                    'color': color,
+                    })
+
+    ax.set_xticks(x_spec)
+    ax.set_yticks(y_spec)
+
+    x_padding = (x_spec[-1]-x_spec[0])*0.1
+    y_padding = (y_spec[-1]-y_spec[0])*0.1
+    ax.set_xlim(x_spec[0]-x_padding, x_spec[-1]+x_padding)
+    ax.set_ylim(y_spec[0]-x_padding, y_spec[-1]+x_padding)
+
+    ax.set_title(title)
+    ax.grid(True, linestyle=':', color='#00000020', alpha=0.2)
+
+    return cs
+
+def plot_error_grid(x: List[float], y: List[float], z_train: List[float], 
+                    z_val: List[float], x_spec: List[float], y_spec: List[float], 
+                    row_name: str, 
+                    str_x_dimension: str,
+                    str_y_dimension: str,
+                    levels: List[float], axx: list, fig: plt.Figure) -> None:
+    """
+    Plots the error grid for both train and validation data.
+
+    Args:
+        x (List[float]): The list of x values.
+        y (List[float]): The list of y values.
+        z_train (List[float]): The list of training error values.
+        z_val (List[float]): The list of validation error values.
+        x_spec (List[float]): The list of x-axis tick values.
+        y_spec (List[float]): The list of y-axis tick values.
+        row_name (str): The name of the row.
+        str_x_dimension (str): The name of the x-axis dimension.
+        str_y_dimension (str): The name of the y-axis dimension.
+        levels (List[float]): The list of contour levels.
+        axx (list): The list of axes objects.
+        fig (plt.Figure): The figure object.
+
+    Returns:
+        None
+    """
+    cs = plot_ax_error_grid(axx[0], levels, x, y, z_train, 
+                            x_spec, y_spec, 
+                            str_x_dimension, str_y_dimension,
+                            f'{row_name}\nTrain error')
+    cs = plot_ax_error_grid(axx[1], levels, x, y, z_val, 
+                            x_spec, y_spec,
+                            str_x_dimension, str_y_dimension,
+                              f'{row_name}\nValidation error')
+
+    ax = axx[2]
+    ax.set_axis_off()
+    
+    cbar = fig.colorbar(cs, drawedges=False, 
+                        aspect = 50, label='Error', ax=ax,
+                        fraction=1.5)
+    cbar.outline.set_visible(False)
+
+
+def show_model_errors_grid(
+        lst_grid_params: list, 
+        lst_grid_models: list,
+        param_grid_definition: dict,
+        str_x_dimension: str,
+        str_y_dimension: str) -> None:
+    """
+    Plots the error grids for a grid search of hyperparameters.
+
+    Args:
+        lst_grid_params (list): A list of dictionaries containing the hyperparameters for each model.
+        lst_grid_models (list): A list of dictionaries containing the trained models and their errors.
+        param_grid_definition (dict): A dictionary defining the hyperparameter grid.
+        str_x_dimension (str): The name of the hyperparameter to use for the x-axis.
+        str_y_dimension (str): The name of the hyperparameter to use for the y-axis.
+
+    Returns:
+        None
+    """
+    dict_rest_dimensions = {
+        k:v for k,v in param_grid_definition.items() if k not in [str_x_dimension, str_y_dimension]
+    }
+
+    num_rest_dimensions = len(dict_rest_dimensions.keys())
+
+    lst_rest_dimensions = [
+            dict(
+                zip(dict_rest_dimensions.keys(), values)) \
+                      for values in product(*dict_rest_dimensions.values())
+        ]
+    
+    def passes_filter(dict_params, dict_rest_dimension):
+        if not all([dict_params[k] == dict_rest_dimension[k] for k in dict_rest_dimension]):
+            return False
+        return True
+
+    dict_restdim_lst_grid_params_filtered = {}
+    for restdim in lst_rest_dimensions:
+        lst_grid_params_filtered = []
+        lst_grid_models_filtered = []
+        for i, r in enumerate(lst_grid_params):
+            if passes_filter(r, restdim):
+                lst_grid_params_filtered.append(lst_grid_params[i])
+                lst_grid_models_filtered.append(lst_grid_models[i])
+
+        str_key = ',\n'.join([
+                f'{k} = {restdim[k]}' for k in restdim.keys()
+            ])
+        dict_restdim_lst_grid_params_filtered[str_key] = {
+            'lst_grid_params_filtered': lst_grid_params_filtered,
+            'lst_grid_models_filtered':lst_grid_models_filtered
+        }
+
+    nrows = len(dict_restdim_lst_grid_params_filtered.keys())
+    fig, axxx = make_fig(20,8*nrows, 
+                        ncols=3,
+                        nrows=nrows,
+                        gridspec_kw={
+                            'width_ratios': [1,1,0.2],
+                            'wspace':0.1,
+                            'hspace': 0.1+(0.1*num_rest_dimensions)
+                            },
+                        squeeze=False
+                    )
+
+    def plot_error_grid_row(
+            lst_grid_params, 
+            lst_grid_models,
+            row_name,
+            levels,
+            axx,
+            fig):
+        x = np.array([
+            e[str_x_dimension] for e in lst_grid_params
+        ])
+
+        x_spec = param_grid_definition[str_x_dimension]
+
+        y = np.array([
+            e[str_y_dimension] for e in lst_grid_params
+        ])
+
+        y_spec = param_grid_definition[str_y_dimension]
+
+        z_train = np.array([
+            e['train_error'] for e in lst_grid_models
+        ])
+        z_val = np.array([
+            e['val_error'] for e in lst_grid_models
+        ])
+
+        plot_error_grid(x, y, z_train, z_val, x_spec, y_spec, row_name, 
+                        str_x_dimension=str_x_dimension,
+                        str_y_dimension=str_y_dimension,
+                        levels = levels,
+                        axx=axx, fig=fig)
+
+
+    zmax = np.array([e['train_error'] for e in  lst_grid_models]+\
+             [e['val_error'] for e in  lst_grid_models])
+    zmax = np.quantile(zmax, 0.99, )
+    zpadding = 0.1 * zmax
+    levels = np.linspace(0, zmax+zpadding, 160)
+
+    for i, restdim in enumerate(dict_restdim_lst_grid_params_filtered):
+        lst_grid_params_filtered = dict_restdim_lst_grid_params_filtered[restdim]['lst_grid_params_filtered']
+        lst_grid_models_filtered = dict_restdim_lst_grid_params_filtered[restdim]['lst_grid_models_filtered']
+        plot_error_grid_row(
+            lst_grid_params_filtered, 
+            lst_grid_models_filtered, 
+            row_name=restdim,
+            levels = levels,
+            axx=axxx[i], 
+            fig=fig)
+        
+    plt.show()
+
+def plot_error_distirbution_per_hyperparam(df_models: pd.DataFrame,
+                                           param_grid_definition, 
+                                           col_hyperparam: tuple, 
+                                           ax: plt.Axes,
+                                           draw_scatter: bool = False) -> None:
+    """
+    Plots the distribution of training and validation errors for a given hyperparameter.
+
+    Args:
+        df_models (pd.DataFrame): DataFrame containing the model results.
+        col_hyperparam (tuple): Tuple containing the column name for the hyperparameter.
+        ax (plt.Axes): Axes object to plot on.
+        draw_scatter (bool, optional): Flag to draw scatter plot. Defaults to False.
+
+    Returns:
+        None
+    """
+    col_error_train = ('error', 'train_error')
+    col_error_val = ('error', 'val_error')
+    
+    if draw_scatter:
+        df_models.plot(
+            y=col_error_val,
+            x=col_hyperparam,
+            ax=ax,
+            kind='scatter',
+            s=20,
+            marker='o',
+            linewidth=0,
+            alpha=.1,
+            color=S.context,
+        )
+    
+    df_models.groupby(
+        col_hyperparam
+        ).agg({col_error_val:'mean'})[
+            col_error_val
+        ].plot(ax=ax, 
+            alpha=0.8,
+            color=S.neutral)
+    
+    df_models.groupby(
+        col_hyperparam
+        ).agg({col_error_train:'mean'})[
+            col_error_train
+        ].plot(ax=ax, 
+            alpha=0.5,
+            color=S.focus)
+    
+    leg = ax.legend(['Validation error', 'Training error'])
+    leg.get_frame().set_linewidth(0.0)
+
+    ax.set_xticks(param_grid_definition[col_hyperparam[1]])
+    ax.set_xlabel(col_hyperparam[1])
+    ax.set_ylabel('Average error')
+
+def show_error_distirbutions_per_hyperparam(param_grid_definition: dict, df_models: pd.DataFrame) -> None:
+    """
+    Plots the distribution of training and validation errors for each hyperparameter in the param_grid_definition.
+
+    Args:
+        param_grid_definition (dict): A dictionary containing the hyperparameters and their values.
+        df_models (pd.DataFrame): A DataFrame containing the model results.
+
+    Returns:
+        None
+    """
+
+    max_cols = 2
+    n_params = len(param_grid_definition)
+
+    num_cols = min(max_cols, n_params)
+    num_rows = int(math.ceil(n_params / num_cols))
+
+    fig, axxx = make_fig(6*num_cols, 3*num_rows,
+                        ncols=num_cols, 
+                        nrows=num_rows,
+                        squeeze=False,
+                        )
+
+    for i in range(num_rows):
+        for j in range(num_cols):
+            idx = i*num_cols + j
+            if idx >= n_params:
+                #hide axes
+                axxx[i,j].set_axis_off()
+            else:
+                col_hyperparam = ('param', list(param_grid_definition.keys())[idx])            
+                ax = axxx[i][j]
+
+                plot_error_distirbution_per_hyperparam(
+                    df_models, param_grid_definition, col_hyperparam, ax)
+        fig.tight_layout()

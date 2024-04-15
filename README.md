@@ -1,11 +1,11 @@
 Brazilian e-commerce company: OLIST
 Sales forecasting.
 
-Notebooks:
+### Notebooks
 * [Raw data exploration and preprocessing](notebooks/1-data_exploration.ipynb) 
 * [Exploring the time series properties and forecasting](notebooks/2-forecasting.ipynb)
 
-Project Organization
+### Project Organization
 ------------
     ├── LICENSE
     ├── data
@@ -30,5 +30,14 @@ Project Organization
     │
     ├── tests              <- Unit tests
 --------
+
+### Running the notebooks
+In order to run the notebooks, create a virtual environment based on the requirements.txt file and install the dependencies. Jupyter must be launched from the project root as a working directory.
+
+### Unit tests
+```
+cd tests
+pyhon -m unittest
+```
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
