@@ -41,7 +41,6 @@ def despine(ax: plt.Axes, full: bool = False, grid: bool = True) -> None:
     if grid:
         ax.grid()
 
-
 def make_fig(width: int = 10, height: int = 10, nrows: int = 1,
         ncols: int = 1, squeeze: bool = True, *args, **kwargs) -> tuple[plt.Figure, plt.Axes]:
     """Make a matplotlib figure with the given dimensions, squeezing axes as needed.
@@ -78,9 +77,36 @@ def make_fig(width: int = 10, height: int = 10, nrows: int = 1,
     
     return fig, ax
 
+
+def create_ax_if_none(*makefig_args, **makefig_kwargs):
+    """
+    Decorator function that creates a new matplotlib figure and axis if none is provided.
+
+    Args:
+        *makefig_args: Positional arguments to pass to make_fig function.
+        **makefig_kwargs: Keyword arguments to pass to make_fig function.
+
+    Returns:
+        A decorator function that wraps the decorated function.
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            ax = kwargs.pop('ax', None)
+            created = False
+            if ax is None:
+                created = True
+                fig, ax = make_fig(*makefig_args, **makefig_kwargs)
+            ret = func(*args, **kwargs, ax=ax)
+            if created:
+                plt.show()
+            return ret
+        return wrapper
+    return decorator
+
+@create_ax_if_none(15,1.3)
 def plot_points_density(sr: pd.Series, 
-                        ax: plt.Axes = None,
-                        title: str = None) -> None:
+                        title: str = None,
+                        ax: plt.Axes = None) -> None:
     """
     Plot the availability of data over time.
 
@@ -91,10 +117,6 @@ def plot_points_density(sr: pd.Series,
     Returns:
         None
     """
-    standalone = False
-    if ax is None:
-        standalone = True
-        _, ax = make_fig(15, 1.3)
     sr.plot(marker='|', linewidth=0., color='#00000010', ax=ax)
     ax.set_yticks([])
     ax.set_xlabel(None)
@@ -103,17 +125,15 @@ def plot_points_density(sr: pd.Series,
     if title is not None:
         ax.set_title(title)
 
-    if standalone:
-        plt.show()
-
-def plot_sales(df_product_sales: pd.DataFrame, 
+@create_ax_if_none(15,4)
+def plot_values(df: pd.DataFrame, 
+               ylabel=None,
                show_legend: bool = False, 
-               title='Sales per day for differnt product categories',
-               fig_size: Tuple[int, int] = (20, 4),) -> None:
+               ax: matplotlib.axes.Axes = None) -> None:
     """Plot the sales per day for different product categories.
     
     Args:
-        df_product_sales (pd.DataFrame): DataFrame containing the product sales data
+        df (pd.DataFrame): DataFrame containing the product sales data
         show_legend (bool, optional): Whether to show the legend.
         fig_size (Tuple[int, int], optional): Figure size in inches as (width, height).
         
@@ -121,23 +141,30 @@ def plot_sales(df_product_sales: pd.DataFrame,
         None
     """
     
-    fig, ax = make_fig(*fig_size)
-    df_product_sales.plot(ax=ax, legend=False, alpha=0.5)
-    ax.set_ylabel('Sales per day')
+    df.plot(ax=ax, legend=False, alpha=0.5)
+    ax.set_ylabel(ylabel)
     if show_legend:
-        ax.legend(bbox_to_anchor=(1.0, 1.0))
+        leg = ax.legend(bbox_to_anchor=(1.0, 1.0))
+        leg.get_frame().set_visible(False)
     ax.grid()
-    ax.set_title(title)
+    ax.set_title(ylabel)
     ax.set_xlabel(None)
-    plt.show()
 
-def plot_timeseries(sr_x: pd.Series, ax) -> None:
-    """Plot a timeseries with rolling statistics.
+@create_ax_if_none(15,4)
+def plot_timeseries(sr_x: pd.Series, 
+                    title: str = None, 
+                    ylabel:str = None, 
+                    ax: matplotlib.axes.Axes = None) -> None:
+    """Plot a timeseries.
 
     Args:
-        sr_x (pd.Series): The timeseries to plot.
-        ax (matplotlib.axes.Axes): The axes to plot on.
+        sr_x (pd.Series): A pandas Series containing the timeseries data.
+        title (str, optional): The title of the plot.
+        ylabel (str, optional): The y-axis label.
+        ax (matplotlib.axes.Axes, optional): An existing Axes object to plot on. If not provided, a new figure and axes will be created.
 
+    Returns:
+        None
     """
 
     sr_x.plot(ax=ax, alpha=1., color=S.neutral)
@@ -168,35 +195,33 @@ def plot_timeseries(sr_x: pd.Series, ax) -> None:
         loc='upper left')
     leg.get_frame().set_linewidth(0.0)
     ax.set_xlabel(None)
-    ax.set_ylabel('X')
-    ax.set_title('Timeseries')
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    if title is not None:
+        ax.set_title(title)
 
+@create_ax_if_none(5,5)
 def plot_histogram(
     sr_x: pd.Series, 
-    ax: matplotlib.axes.Axes, 
     num_bins: int = 50, 
     hist_range: tuple = None,
     hist_size_ratio: float = None,
     xmin: float = 0, 
-    xmax: float = None
+    xmax: float = None,
+    ax: matplotlib.axes.Axes = None, 
 ) -> None:
     """Plot a histogram of a timeseries with statistics.
 
     Args:
         sr_x (pd.Series): The timeseries to plot.
-        ax (matplotlib.axes.Axes): The axes to plot on.
         num_bins (int): Number of bins for the histogram.
         hist_range (tuple): Min and max values for the histogram range.
         hist_size_ratio (float): Ratio to scale histogram height.
         xmin (float): Minimum value for x-axis.
         xmax (float): Maximum value for x-axis.
+        ax (matplotlib.axes.Axes): The axes to plot on.
 
     """
-    
-    def print(str):
-        pass
-        # print(str)
-
     if xmax is None:
         xmax = max(sr_x)
 
@@ -213,11 +238,6 @@ def plot_histogram(
                                 bins = num_bins,
                                 range = hist_range,
                                 density = density)
-    print(f'len(sr_x_slice) {slice_len}')
-    print(f'bins {bins}')
-    print(f'counts {counts}')
-    
-    print(f'xmin xmax  {xmin} {xmax}')
 
     max_count = max(counts)
     if standalone:
@@ -229,10 +249,6 @@ def plot_histogram(
     if not standalone:
         counts_scale = counts_scale_base  * hist_size_ratio
         counts = counts * counts_scale
-    
-    print(f'counts_scale {counts_scale}')
-    
-    print(f'counts after scaling {counts}')
     
     ax.stairs(xmin+counts, bins, 
                orientation='horizontal', 
@@ -255,7 +271,6 @@ def plot_histogram(
         ax.set_xlim(xmin, xright)
 
         ax.set_xticks(ax.get_xticks()[:-2])
-    
 
     hlines_params = dict(
         xmin=xmin,
@@ -263,8 +278,6 @@ def plot_histogram(
         color=S.context, 
         alpha=0.5,
     )
-
-    print(hlines_params)
 
     for j, (func_y, name, va, ln_st) in enumerate([
         (lambda sr: pd.Series.quantile(sr, 0.9), '', 'bottom',  ':'),
@@ -318,22 +331,18 @@ def plot_histogram(
             text.set_color(S.context)
         leg.get_frame().set_linewidth(0.0)
 
-
-def plot_histogram_series(sr_x: pd.Series, ax: plt.Axes, num_hists: int = 5) -> list[pd.Timestamp]:
+@create_ax_if_none(15,4)
+def plot_histogram_series(sr_x: pd.Series, num_hists: int = 5, ax: plt.Axes = None) -> list[pd.Timestamp]:
     """Plot histograms of slices of a timeseries.
 
     Args:
         sr_x: Timeseries to slice and plot histograms.
-        ax: Axes to plot on.
         num_hists: Number of histogram slices.
+        ax: Axes to plot on.
 
     Returns:
         lst_xticks: List of x-axis tick locations.
     """
-
-    def print(str):
-        pass
-        # print(str)
 
     slice_len = len(sr_x) // num_hists
 
@@ -360,18 +369,17 @@ def plot_histogram_series(sr_x: pd.Series, ax: plt.Axes, num_hists: int = 5) -> 
     x_max = sr_x.max()
     
     hist_size_ratio = .6
-    print(f'slice_len {slice_len}')
-    print(f'hist_size_ratio {hist_size_ratio}')
+
     for i in range(num_hists):
         sr_x_slice = sr_x[(i)*slice_len:(i+1)*slice_len]
         imin = i * len(sr_x_slice)
         imax = imin + len(sr_x_slice)
-        print(f'imin imax {imin} {imax}' )
 
-        plot_histogram(sr_x_slice, ax_twin, num_bins=50, 
+        plot_histogram(sr_x_slice, num_bins=50, 
                        hist_range = (x_min, x_max),
                        hist_size_ratio=hist_size_ratio,
-                       xmin=imin, xmax=imax)
+                       xmin=imin, xmax=imax,
+                       ax=ax_twin)
 
     return lst_xticks
 
@@ -391,37 +399,43 @@ def calc_sr_autocorr(sr: pd.Series, max_lag: int = 100) -> pd.Series:
         dict_ret[l] = sr.autocorr(lag=l)
     return pd.Series(dict_ret)
 
-def plot_autocorrelation(sr_x_slice: pd.Series, ax: plt.Axes) -> None:
-    """Plot the autocorrelation of a pandas Series.
+@create_ax_if_none(10,5)
+def plot_autocorrelation(sr_x_slice: pd.Series, window: int = 45, ax: plt.Axes = None) -> None:
+    """
+    Plot the autocorrelation of a given time series slice.
 
     Args:
-        sr_x_slice: The input pandas Series to calculate autocorrelation.
-        ax: The matplotlib Axes to plot the autocorrelation on.
+        sr_x_slice (pd.Series): The time series slice to calculate and plot the autocorrelation for.
+        window (int, optional): The maximum lag to calculate the autocorrelation up to. Defaults to 45.
+        ax (plt.Axes, optional): The Axes object to plot on. If None, a new figure and axes will be created.
 
     Returns:
         None
     """
-    calc_sr_autocorr(sr_x_slice, 45).plot.bar(
+    calc_sr_autocorr(sr_x_slice, window).plot.bar(
         ax=ax, color=S.neutral, width=0.5, alpha=1)
-    ax.set_xticks(range(-1,45, 10))
+    ax.set_xticks(range(-1,window, 10))
     ax.set_ylabel('correlation')
     ax.set_xlabel('lag')
     ax.set_title('Autocorrelation')
 
-def plot_rolling_stat(sr_x: pd.Series, ax: plt.Axes, func_stat: Callable, ylabel: str) -> None:
-    """Plot a rolling statistic of a pandas Series.
-    
+@create_ax_if_none(15,4)
+def plot_rolling_stat(sr_x: pd.Series, func_stat: Callable, ylabel: str, ax: plt.Axes = None) -> None:
+    """
+    Plot a rolling statistic for a given pandas Series.
+
     Args:
-        sr_x: Input pandas Series.
-        ax: Matplotlib Axes to plot on.
-        func_stat: Function to calculate statistic on rolling window.
-        ylabel: Label for y-axis.
-        
+        sr_x (pd.Series): The input pandas Series to calculate the rolling statistic for.
+        func_stat (Callable): The function to apply to the rolling window (e.g. np.mean, np.std).
+        ylabel (str): The label for the y-axis.
+        ax (plt.Axes, optional): The Axes object to plot on. If None, a new figure and axes will be created.
+
     Returns:
         None
     """
     for rolling_period in range(10,500, 10):
-        sr_x.rolling(rolling_period).apply(func_stat).plot(ax=ax, color=S.neutral, alpha=0.1)
+        sr_x.rolling(rolling_period).apply(func_stat).plot(
+            ax=ax, color=S.neutral, alpha=0.1)
     ax.set_ylabel(ylabel)
     
     ax.set_xticks([])
@@ -431,11 +445,12 @@ def plot_rolling_stat(sr_x: pd.Series, ax: plt.Axes, func_stat: Callable, ylabel
     ax.margins(0.)
     ax.grid()
 
+@create_ax_if_none(5,5)
 def plot_dist_probplot(
         sr_x: pd.Series,
-        ax: plt.Axes,
         dist: Any = "norm",
         dist_name: str = "Normal",
+        ax: plt.Axes = None,
         *args, **kwargs) -> None:
     """Generate a distribution probability plot for a pandas Series.
 
@@ -480,8 +495,6 @@ def show_timeseries_plots(sr_x: pd.Series) -> None:
     ax_2_0 = fig.add_subplot(gs[2, 0])
     ax_2_1 = fig.add_subplot(gs[2, 1])
     ax_2_2 = fig.add_subplot(gs[2, 2])
-    # ax_2_3 = fig.add_subplot(gs[2, 3])
-    # ax_2_4 = fig.add_subplot(gs[2, 4])
 
     def format_axes(fig):
         for i, ax in enumerate(fig.axes):
@@ -490,43 +503,28 @@ def show_timeseries_plots(sr_x: pd.Series) -> None:
     format_axes(fig)
 
     ax = ax_1_0
-    lst_xticks = plot_histogram_series(sr_x, ax, num_hists = 6)
+    lst_xticks = plot_histogram_series(sr_x, num_hists = 6, ax=ax)
     ax.set_xticklabels([])
 
     ax = ax_1_1
-    plot_histogram(sr_x, ax, num_bins=50, hist_range=(x_min, x_max))
+    plot_histogram(sr_x, num_bins=50, hist_range=(x_min, x_max), ax=ax)
 
     ax = ax_0_0
-    plot_timeseries(sr_x, ax)
+    plot_timeseries(sr_x, 'Timeseries', 'X', ax=ax)
     for xtick in lst_xticks:
         ax.axvline(xtick, color='black', alpha=1., linewidth=0.2)
 
     ax=ax_0_1
-    plot_autocorrelation(sr_x, ax)
-
-
-    # ax = ax_2_0
-    # plot_rolling_stat(sr_x, ax, np.mean, 'rolling\nmean')
-
-    # ax = ax_3_0
-    # plot_rolling_stat(sr_x, ax, np.std, 'rolling\nstd')
+    plot_autocorrelation(sr_x, ax=ax)
 
     ax = ax_2_0
-    plot_dist_probplot(sr_x, ax, 'norm', 'Normal')
+    plot_dist_probplot(sr_x, 'norm', 'Normal', ax=ax)
 
     ax = ax_2_1
-    plot_dist_probplot(sr_x, ax, scipy.stats.powerlaw(1), 'powerlaw(1)')
+    plot_dist_probplot(sr_x, scipy.stats.powerlaw(1), 'powerlaw(1)', ax=ax)
 
     ax = ax_2_2
-    plot_dist_probplot(sr_x, ax, scipy.stats.gamma(1), 'gamma(1)')
-
-    # ax = ax_2_3
-    # plot_dist_probplot(sr_x, ax, scipy.stats.expon, 'expon')
-
-    # ax = ax_2_4
-    # plot_dist_probplot(sr_x, ax, scipy.stats.exponnorm(1), 'exponnorm')
-
-    
+    plot_dist_probplot(sr_x, scipy.stats.gamma(1), 'gamma(1)', ax=ax)
 
     plt.show()
 
@@ -573,12 +571,13 @@ def show_comparison_original_vs_restored(sr_x_original: pd.Series, timeseries_tr
     
     plt.show()
 
+@create_ax_if_none(5,5)
 def plot_series_errors(
         lst_series_specs: List[Tuple[pd.Series, str, Dict[str, Any]]],
         lst_errors: List[float],
-        ax: plt.Axes,
         metric_name: str,
-        dataset_name: str
+        dataset_name: str,
+        ax: plt.Axes = None,
         ) -> None:
     """
     Plots the errors for a list of series specifications on a given axis.
@@ -586,8 +585,8 @@ def plot_series_errors(
     Args:
         lst_series_specs (List[Tuple[pd.Series, str, Dict[str, Any]]]): A list of tuples containing the series data, label, and plot style dictionary.
         lst_errors (List[float]): A list of error values corresponding to each series specification.
-        ax (plt.Axes): The axis object on which to plot the errors.
         dataset_name (str): The name of the dataset being plotted.
+        ax (plt.Axes): The axis object on which to plot the errors.
 
     Returns:
         None
@@ -613,19 +612,19 @@ def plot_series_errors(
     ax.set_ylabel(metric_name)
     ax.set_title(f'{metric_name}\n on the {dataset_name} set')
 
-
-def plot_model_predictions_transform_reversed(
+@create_ax_if_none(15,4)
+def plot_model_predictions(
         lst_series_specs: List[Tuple[pd.Series, str, Dict]],
-        ax: plt.Axes,
-        dataset_name: str
+        dataset_name: str,
+        ax: plt.Axes = None,
     ) -> None:
     """
     Plot the model predictions on the given axis.
 
     Args:
         lst_series_specs (List[Tuple[pd.Series, str, Dict]]): A list of tuples containing the series data, label, and plot options.
-        ax (plt.Axes): The axis object on which to plot the data.
         dataset_name (str): The name of the dataset being plotted.
+        ax (plt.Axes): The axis object on which to plot the data.
 
     Returns:
         None
@@ -692,7 +691,7 @@ def show_forecast_errors_and_predictions(
 
     fig, axx = make_fig(15, 9, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
 
-    plot_model_predictions_transform_reversed(
+    plot_model_predictions(
         lst_series_specs,
         ax = axx[1],
         dataset_name = dataset_name
@@ -701,104 +700,9 @@ def show_forecast_errors_and_predictions(
     plot_series_errors(
         lst_series_specs[1:],
         lst_errors[1:],
-        ax = axx[0],
         metric_name = error_metric[1],
-        dataset_name = dataset_name
-    )
-
-    fig.tight_layout()
-    plt.show()
-
-
-
-def show_forecast_errors_and_predictions_transform_reversed(
-    df: pd.DataFrame,
-    df_original: pd.DataFrame,
-    model: Any,
-    error_metric: Tuple[Callable,str],
-    timeseries_transformer,
-    dataset_name: str
-) -> None:
-    """
-    Displays forecast errors and predictions with the transformed values reversed back to the original scale.
-
-    Args:
-        df (pd.DataFrame): DataFrame with the transformed features and target values.
-        df_original (pd.DataFrame): DataFrame with features and target values in the original scale.
-        model (Any): The trained model to make predictions.
-        error_metric (Tuple[Callable, str]): A tuple containing the error metric function and its name.
-        timeseries_transformer: The time series transformer used to transform the data.
-        dataset_name (str): The name of the dataset.
-
-    Returns:
-        None
-    """
-    df_X_val, _ = get_x_y(df)
-
-    sr_x_val_original = df_original[('x','-0')]
-
-    # Real values i.e ideal predictions
-    sr_y_val_original = df_original[('y', 1)]
-
-    # baseline linear regression that uses original values as an input
-    sr_val_original_baseline_linreg = df_original[('baseline', 'linear_regression')]
-
-    # baseline naive that uses transformed values as an input
-    # excepted to be equal to sr_val_original_baseline_naive
-    sr_val_transformed_baseline_naive_reversed = timeseries_transformer.transform_forecast_reverse(
-        sr_x_val_original, df[('baseline', 'naive')])
-
-    # baseline linear regression that uses transformed values as an input
-    sr_val_transformed_baseline_linreg_reversed = timeseries_transformer.transform_forecast_reverse(
-        sr_x_val_original, df[('baseline', 'linear_regression')])
-
-
-    yhat_val = model.predict(df_X_val)
-    sr_yhat_val = pd.Series(
-        yhat_val,
-        index=df_X_val.index
-    )
-
-    sr_val_forecast_reversed = timeseries_transformer.transform_forecast_reverse(
-        sr_x_val_original, sr_yhat_val)
-
-    df_val_original_cut = df_original.loc[
-        sr_val_forecast_reversed.index
-    ]
-
-    _, df_y_val_original_cut = get_x_y(df_val_original_cut)
-
-    lst_series_specs = [
-        (sr_y_val_original, 'Real values i.e. ideal forecast', dict(color=S.context, alpha=0.5)),
-        (sr_val_transformed_baseline_naive_reversed, 'Naive baseline', dict(color=S.alt, linestyle=':', alpha=0.5)),
-        (sr_val_original_baseline_linreg, 'Linear regression\n(done directly on original values)\nbaseline', dict(color=S.neutral, linestyle='--', alpha=0.5)),
-        (sr_val_transformed_baseline_linreg_reversed, 'Linear regression\n(done on transformed values)\nbaseline', dict(color=S.neutral, linestyle='-', alpha=0.5)),
-        (sr_val_forecast_reversed, 'Model forecast', dict(color=S.focus, alpha=1.)),
-    ]
-
-    lst_errors = [
-        error_metric[0](
-            df_y_val_original_cut, 
-            e[0].loc[
-                sr_val_forecast_reversed.index
-            ]
-            ) for e in lst_series_specs
-    ]
-
-    fig, axx = make_fig(15, 9, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
-
-    plot_model_predictions_transform_reversed(
-        lst_series_specs,
-        ax = axx[1],
-        dataset_name = dataset_name
-    )
-
-    plot_series_errors(
-        lst_series_specs[1:],
-        lst_errors[1:],
+        dataset_name = dataset_name,
         ax = axx[0],
-        metric_name = error_metric[1],
-        dataset_name = dataset_name
     )
 
     fig.tight_layout()
@@ -867,7 +771,7 @@ def show_forecast_errors_and_predictions_transform_reversed(
 
     fig, axx = make_fig(15, 9, ncols=2, gridspec_kw={'width_ratios': [1, 3]})
 
-    plot_model_predictions_transform_reversed(
+    plot_model_predictions(
         lst_series_specs,
         ax = axx[1],
         dataset_name = dataset_name
@@ -876,16 +780,15 @@ def show_forecast_errors_and_predictions_transform_reversed(
     plot_series_errors(
         lst_series_specs[1:],
         lst_errors[1:],
-        ax = axx[0],
         metric_name = error_metric[1],
-        dataset_name = dataset_name
+        dataset_name = dataset_name,
+        ax = axx[0]
     )
 
     fig.tight_layout()
     plt.show()
 
-
-def plot_ax_error_grid(ax, 
+def plot_ax_error_grid(ax: plt.Axes, 
                        levels: List[float], 
                        x: List[float], y: List[float], z: List[float], 
                        x_spec: List[float], y_spec: List[float], 
@@ -895,7 +798,7 @@ def plot_ax_error_grid(ax,
     Plots a grid of error values on the given axis.
 
     Args:
-        ax: The axis object to plot on.
+        ax (plt.Axes): The axis object to plot on.
         levels (List[float]): The contour levels to use for the plot.
         x (List[float]): The x-coordinates of the grid points.
         y (List[float]): The y-coordinates of the grid points.
@@ -915,14 +818,11 @@ def plot_ax_error_grid(ax,
     ax.set_xlabel(str_x_dimension)
     ax.set_ylabel(str_y_dimension)
 
-    min_x = None
-    min_y = None
     color_base = S.neutral
     for i, z_item in enumerate(z):
         size = 8
     
         color = f'{color_base}ff'
-        # color = f'{S.context}90'
         bbox_props = None
         if z_item <= z.min():
             
@@ -930,9 +830,6 @@ def plot_ax_error_grid(ax,
             back_color = '#000000'
             bbox_props = dict(boxstyle="Square", fc=back_color, ec=back_color, alpha=0.9)
             size = 12
-
-            min_x = x[i]
-            min_y = y[i]
 
         ax.text(x[i], y[i], np.round(z_item,3), 
                 bbox=bbox_props,
@@ -1115,19 +1012,20 @@ def show_model_errors_grid(
         
     plt.show()
 
+@create_ax_if_none(10,5)
 def plot_error_distirbution_per_hyperparam(df_models: pd.DataFrame,
                                            param_grid_definition, 
                                            col_hyperparam: tuple, 
-                                           ax: plt.Axes,
-                                           draw_scatter: bool = False) -> None:
+                                           draw_scatter: bool = False,
+                                           ax: plt.Axes = None) -> None:
     """
     Plots the distribution of training and validation errors for a given hyperparameter.
 
     Args:
         df_models (pd.DataFrame): DataFrame containing the model results.
         col_hyperparam (tuple): Tuple containing the column name for the hyperparameter.
-        ax (plt.Axes): Axes object to plot on.
         draw_scatter (bool, optional): Flag to draw scatter plot. Defaults to False.
+        ax (plt.Axes, optional): Axes object to plot on.
 
     Returns:
         None
@@ -1206,5 +1104,5 @@ def show_error_distirbutions_per_hyperparam(param_grid_definition: dict, df_mode
                 ax = axxx[i][j]
 
                 plot_error_distirbution_per_hyperparam(
-                    df_models, param_grid_definition, col_hyperparam, ax)
+                    df_models, param_grid_definition, col_hyperparam, ax=ax)
         fig.tight_layout()
