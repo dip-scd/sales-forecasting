@@ -1,4 +1,5 @@
-Brazilian e-commerce company: OLIST
+Brazilian e-commerce company OLIST  
+https://www.kaggle.com/datasets/erak1006/brazilian-e-commerce-company-olist  
 Sales forecasting.
 
 ### Notebooks
