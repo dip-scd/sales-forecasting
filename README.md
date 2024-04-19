@@ -1,4 +1,5 @@
-Brazilian e-commerce company: OLIST
+Brazilian e-commerce company OLIST  
+https://www.kaggle.com/datasets/erak1006/brazilian-e-commerce-company-olist  
 Sales forecasting.
 
 ### Notebooks
@@ -12,9 +13,9 @@ Sales forecasting.
     │   └── raw            <- The original data.
     │
     ├── notebooks          <- Jupyter notebooks. 
-    │   ├── [1-data_exploration.ipynb](notebooks/1-data_exploration.ipynb) <- Raw data exploration and preprocessing.
+    │   ├── 1-data_exploration.ipynb <- Raw data exploration and preprocessing.
     │   │   
-    │   └── [2-forecasting.ipynb](notebooks/2-forecasting.ipynb) <- Exploring the time series properties and forecasting.
+    │   └── 2-forecasting.ipynb <- Exploring the time series properties and forecasting.
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment.
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
